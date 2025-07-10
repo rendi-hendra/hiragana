@@ -11,7 +11,6 @@ import {
 } from "@/components/ui/card";
 import { Input } from "./components/ui/input";
 import { useEffect, useState } from "react";
-import { hiraganaArray, romajiHiragana } from "@/lib/hiragana";
 import {
   LineChart,
   Line,
@@ -23,6 +22,12 @@ import {
 } from "recharts";
 import { useLocalStorage } from "react-use";
 import { useImmer } from "use-immer";
+import hiragana from "@/lib/hiragana.json";
+
+type HiraganaItem = {
+  kana: string;
+  romaji: string;
+};
 
 function shuffleArray<T>(array: T[]): T[] {
   const shuffled = [...array];
@@ -34,15 +39,15 @@ function shuffleArray<T>(array: T[]): T[] {
 }
 
 function App() {
-  const [shuffledHiragana, setShuffledHiragana] = useState(() =>
-    shuffleArray(hiraganaArray)
+  const [shuffledHiragana, setShuffledHiragana] = useState<HiraganaItem[]>(() =>
+    shuffleArray(hiragana)
   );
   const [current, setCurrent] = useState(0);
   const [input, setInput] = useState("");
-  const [answer, setAnswer] = useState<boolean>(false);
-  const [message, setMessage] = useState<string>("");
-  const [counterSuccess, setCounterSuccess] = useState<number>(0);
-  const [counterWrong, setCounterWrong] = useState<number>(0);
+  const [answer, setAnswer] = useState(false);
+  const [message, setMessage] = useState("");
+  const [counterSuccess, setCounterSuccess] = useState(0);
+  const [counterWrong, setCounterWrong] = useState(0);
   const [answerWrong, updateAnswerWrong] = useImmer<string[]>([]);
   const [history, updateHistory] = useImmer<
     { question: string; correct: number; wrong: number; accuracy: number }[]
@@ -60,23 +65,20 @@ function App() {
 
   function getAccuracy(): number {
     const total = counterSuccess + counterWrong;
-    if (total === 0) return 0;
-    return Math.round((counterSuccess / total) * 100);
+    return total === 0 ? 0 : Math.round((counterSuccess / total) * 100);
   }
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
 
-    const currentHiragana = shuffledHiragana[current];
-    const index = hiraganaArray.indexOf(currentHiragana);
-    const correctRomaji = romajiHiragana[index];
-    const isCorrect = input.trim().toLowerCase() === correctRomaji;
+    const currentItem = shuffledHiragana[current];
+    const isCorrect = input.trim().toLowerCase() === currentItem.romaji;
 
     setAnswer(isCorrect);
     setMessage(
       isCorrect
-        ? `Benar! Jawaban: ${correctRomaji}`
-        : `Salah! Jawaban yang benar: ${correctRomaji}`
+        ? `Benar! Jawaban: ${currentItem.romaji}`
+        : `Salah! Jawaban yang benar: ${currentItem.romaji}`
     );
 
     if (isCorrect) {
@@ -84,7 +86,7 @@ function App() {
     } else {
       setCounterWrong((prev) => prev + 1);
       updateAnswerWrong((draft) => {
-        draft.push(currentHiragana);
+        draft.push(currentItem.kana);
       });
     }
 
@@ -102,13 +104,14 @@ function App() {
 
     updateHistory((draft) => {
       draft.push({
-        question: currentHiragana,
+        question: currentItem.kana,
         correct: updatedCorrect,
         wrong: updatedWrong,
         accuracy: acc,
       });
     });
 
+    // Hapus hiragana yang sudah dijawab
     setShuffledHiragana((prev) => {
       const newList = [...prev];
       newList.splice(current, 1);
@@ -128,9 +131,9 @@ function App() {
               <CardTitle className="text-2xl font-bold text-indigo-700">
                 Hiragana Trainer
               </CardTitle>
-              <CardDescription>
+              {/* <CardDescription>
                 Latihan membaca huruf hiragana dengan romaji
-              </CardDescription>
+              </CardDescription> */}
               <CardAction className="mt-2">
                 <div className="text-sm text-gray-700">
                   Akurasi: <strong>{getAccuracy()}%</strong>
@@ -148,7 +151,7 @@ function App() {
                 <div className="text-8xl text-center font-semibold text-indigo-800">
                   {shuffledHiragana.length === 0
                     ? `✅ Selesai!`
-                    : shuffledHiragana[current]}
+                    : shuffledHiragana[current].kana}
                 </div>
                 <div
                   className={`text-center text-lg font-medium ${
@@ -179,7 +182,30 @@ function App() {
           </form>
         </Card>
 
-        <div className="bg-white rounded-lg p-4 shadow-md border border-gray-200">
+        <Card className="w-full max-w-md shadow-xl border-2 border-indigo-300">
+          <CardTitle className="text-lg font-bold text-center mb-2 text-indigo-700">
+            Akurasi Tiap Sesi
+          </CardTitle>
+          <CardContent>
+            <LineChart
+              width={400}
+              height={250}
+              data={accuracyArray.map((item, index) => ({
+                name: index + 1,
+                accuracy: item,
+              }))}
+            >
+              <CartesianGrid strokeDasharray="3 3" />
+              <XAxis dataKey="name" />
+              <YAxis domain={[0, 100]} />
+              <Tooltip />
+              <Legend />
+              <Line type="monotone" dataKey="accuracy" stroke="#4f46e5" />
+            </LineChart>
+          </CardContent>
+        </Card>
+
+        {/* <div className="bg-white rounded-lg p-4 shadow-md border border-gray-200">
           <h2 className="text-lg font-bold text-center mb-2 text-indigo-700">
             Akurasi Tiap Sesi
           </h2>
@@ -198,7 +224,7 @@ function App() {
             <Legend />
             <Line type="monotone" dataKey="accuracy" stroke="#4f46e5" />
           </LineChart>
-        </div>
+        </div> */}
       </div>
     </>
   );
